@@ -1,0 +1,7 @@
+tensorflow
+torch
+opencv-python
+pandas
+torchvision
+tqdm
+seaborn
