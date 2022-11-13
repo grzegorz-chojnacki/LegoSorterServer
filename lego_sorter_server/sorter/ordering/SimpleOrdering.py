@@ -55,7 +55,6 @@ class SimpleOrdering:
 
             self._extract_processed_bricks(count=passed_bricks_count)
             self._add_results_to_current_state(results, start_from=self.head_index)
-        pass
 
     def _add_results_to_current_state(self, results, start_from: int):
         for index, result in enumerate(results):
