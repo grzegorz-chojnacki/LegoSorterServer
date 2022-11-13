@@ -24,16 +24,17 @@ class AnalysisService:
 
     def detect(self, image: Image, resize: bool = True, threshold=0.5,
                discard_border_results: bool = True) -> DetectionResults:
-        if image.size is not AnalysisService.DEFAULT_IMAGE_DETECTION_SIZE and resize is False:
-            logging.warning(f"[AnalysisService] Requested detection on an image with a non-standard size {image.size} "
-                            f"but 'resize' parameter is {resize}.")
-
         scale = 1
         original_size = image.size
-        if image.size is not AnalysisService.DEFAULT_IMAGE_DETECTION_SIZE and resize is True:
-            logging.info(f"[AnalysisService] Resizing an image from "
-                         f"{image.size} to {AnalysisService.DEFAULT_IMAGE_DETECTION_SIZE}")
-            image, scale = DetectionUtils.resize(image, AnalysisService.DEFAULT_IMAGE_DETECTION_SIZE[0])
+
+        if image.size is not AnalysisService.DEFAULT_IMAGE_DETECTION_SIZE:
+            if resize is False:
+                logging.warning(f"[AnalysisService] Requested detection on an image with a non-standard size "
+                                f"{image.size} but 'resize' parameter is {resize}.")
+            else:
+                logging.info(f"[AnalysisService] Resizing an image from "
+                             f"{image.size} to {AnalysisService.DEFAULT_IMAGE_DETECTION_SIZE}")
+                image, scale = DetectionUtils.resize(image, AnalysisService.DEFAULT_IMAGE_DETECTION_SIZE[0])
 
         if discard_border_results:
             accepted_xy_range = [(original_size[0] * scale) / image.size[0], (original_size[1] * scale) / image.size[1]]
