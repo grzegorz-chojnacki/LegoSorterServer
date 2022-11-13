@@ -16,12 +16,13 @@ class BrickCategoryConfig:
                 new_bricks = {brick: cat for brick in json_config[cat]["bricks"]}
                 if len(new_bricks.keys() & brick_cat_mapping.keys()) != 0:
                     raise RuntimeError(F"Following bricks are redefined in category {cat}: {new_bricks.keys() & brick_cat_mapping.keys()}")
-                brick_cat_mapping = {**brick_cat_mapping, **new_bricks}
+                brick_cat_mapping.update(new_bricks)
         return brick_cat_mapping, cat_positions
 
     def __init__(self, config_path=None):
         if not config_path:
-            self.brick_cat_mapping, self.cat_positions = {}, {}
+            self.brick_cat_mapping = {}
+            self.cat_positions = {}
         else:
             with open(config_path, "r") as src:
                 self.brick_cat_mapping, self.cat_positions = BrickCategoryConfig.conf_from_json(json.load(src))
