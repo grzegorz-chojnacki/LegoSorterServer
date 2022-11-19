@@ -5,3 +5,5 @@ pandas
 torchvision
 tqdm
 seaborn
+protobuf==3.20.0
+pika
