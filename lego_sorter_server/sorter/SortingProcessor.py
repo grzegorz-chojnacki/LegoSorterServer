@@ -19,9 +19,9 @@ class SortingProcessor:
         self.ordering: SimpleOrdering = SimpleOrdering()
         self.storage: LegoImageStorage = LegoImageStorage()
 
-    def process_next_image(self, image: Image, save_image: bool = True):
+    async def process_next_image(self, image: Image, save_image: bool = True):
         start_time = time.time()
-        current_results = self._process(image)
+        current_results = await self._process(image)
         elapsed_ms = 1000 * (time.time() - start_time)
 
         logging.info(f"[SortingProcessor] Processing an image took {elapsed_ms} ms.")
@@ -54,11 +54,11 @@ class SortingProcessor:
         logging.info(f"[SortingProcessor] Got the best result {best_result}. Returning the results...")
         self.sorter_controller.on_brick_recognized(best_result)
 
-    def _process(self, image: Image) -> List[Tuple]:
+    async def _process(self, image: Image) -> List[Tuple]:
         """
         Returns a list of recognized bricks ordered by the position on the belt - ymin desc
         """
-        results = self.analysis_service.detect_and_classify(image, detection_threshold=0.8)
+        results = await self.analysis_service.detect_and_classify(image, detection_threshold=0.8)
 
         detected_count = len(results[0].detection_classes)
         if detected_count == 0:

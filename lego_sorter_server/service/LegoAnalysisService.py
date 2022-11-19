@@ -14,27 +14,27 @@ class LegoAnalysisService(LegoAnalysis_pb2_grpc.LegoAnalysisServicer):
     def __init__(self):
         self.analysis_service = AnalysisService()
 
-    def DetectBricks(self, request: ImageRequest, context):
-        return self._process_bricks(request, 'Detecting and preparing', self._detect)
+    async def DetectBricks(self, request: ImageRequest, context):
+        return await self._process_bricks(request, 'Detecting and preparing', self._detect)
 
-    def DetectAndClassifyBricks(self, request: ImageRequest, context):
-        return self._process_bricks(request, 'Detecting, classifying and preparing', self._detect_classify)
+    async def DetectAndClassifyBricks(self, request: ImageRequest, context):
+        return await self._process_bricks(request, 'Detecting, classifying and preparing', self._detect_classify)
 
-    def _detect(self, image: Image.Image) -> ListOfBoundingBoxes:
-        detection_results = self.analysis_service.detect(image)
+    async def _detect(self, image: Image.Image) -> ListOfBoundingBoxes:
+        detection_results = await self.analysis_service.detect(image)
         return ImageProtoUtils.prepare_bbs_response_from_detection_results(detection_results)
 
-    def _detect_classify(self, image: Image.Image) -> ListOfBoundingBoxes:
-        detection_results, classification_results = self.analysis_service.detect_and_classify(
+    async def _detect_classify(self, image: Image.Image) -> ListOfBoundingBoxes:
+        detection_results, classification_results = await self.analysis_service.detect_and_classify(
             image)
         return ImageProtoUtils.prepare_response_from_analysis_results(detection_results, classification_results)
 
-    def _process_bricks(self, request: ImageRequest, handler_name: str, handler_fn: AnalysisFn) -> ListOfBoundingBoxes:
+    async def _process_bricks(self, request: ImageRequest, handler_name: str, handler_fn: AnalysisFn) -> ListOfBoundingBoxes:
         logging.info("[LegoAnalysisService] Request received, processing...")
         start_time = time.time()
 
         image = ImageProtoUtils.prepare_image(request)
-        results = handler_fn(image)
+        results = await handler_fn(image)
 
         elapsed_millis = int((time.time() - start_time) * 1000)
         logging.info(

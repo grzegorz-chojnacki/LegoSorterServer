@@ -15,26 +15,26 @@ class LegoSorterService(LegoSorter_pb2_grpc.LegoSorterServicer):
     def __init__(self, brickCategoryConfig: BrickCategoryConfig):
         self.sortingProcessor = SortingProcessor(brickCategoryConfig)
 
-    def processNextImage(self, request: ImageRequest, context) -> ListOfBoundingBoxesWithIndexes:
+    async def processNextImage(self, request: ImageRequest, context) -> ListOfBoundingBoxesWithIndexes:
         start_time = time.time()
         logging.info("[LegoSorterService] Got an image request. Processing...")
         image = ImageProtoUtils.prepare_image(request)
-        current_state = self.sortingProcessor.process_next_image(image)
+        current_state = await self.sortingProcessor.process_next_image(image)
 
-        response = self._prepare_response_from_sorter_state(current_state=current_state)
+        response = self._prepare_response_from_sorter_state(
+            current_state=current_state)
         elapsed_milliseconds = int(1000 * (time.time() - start_time))
-        logging.info(f"[LegoSorterService] Processing the request took {elapsed_milliseconds} milliseconds.")
+        logging.info(
+            f"[LegoSorterService] Processing the request took {elapsed_milliseconds} milliseconds.")
 
         return response
 
     def startMachine(self, request: Empty, context):
         self.sortingProcessor.start_machine()
-
         return Empty()
 
     def stopMachine(self, request: Empty, context):
         self.sortingProcessor.stop_machine()
-
         return Empty()
 
     def getConfiguration(self, request, context) -> SorterConfiguration:
@@ -42,7 +42,6 @@ class LegoSorterService(LegoSorter_pb2_grpc.LegoSorterServicer):
 
     def updateConfiguration(self, request: SorterConfiguration, context):
         self.sortingProcessor.set_machine_speed(request.speed)
-
         return Empty()
 
     @staticmethod

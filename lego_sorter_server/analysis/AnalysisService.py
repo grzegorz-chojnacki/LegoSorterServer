@@ -2,6 +2,7 @@ import logging
 from typing import Tuple, List
 
 import numpy
+import asyncio
 
 from PIL.Image import Image
 
@@ -13,6 +14,9 @@ from lego_sorter_server.analysis.detection.DetectionResults import DetectionResu
 from lego_sorter_server.analysis.detection.detectors.LegoDetector import LegoDetector
 from lego_sorter_server.analysis.detection.detectors.LegoDetectorProvider import LegoDetectorProvider
 
+from lego_sorter_server.service.QueueService import QueueService
+from io import BytesIO
+
 
 class AnalysisService:
     DEFAULT_IMAGE_DETECTION_SIZE = (640, 640)
@@ -20,58 +24,70 @@ class AnalysisService:
 
     def __init__(self):
         self.detector: LegoDetector = LegoDetectorProvider.get_default_detector()
-        self.classifier = LegoClassifierProvider.get_default_classifier()
+        self.classifier: LegoClassifier = LegoClassifierProvider.get_default_classifier()
+        self.queue = QueueService()
 
-    def detect(self, image: Image, resize: bool = True, threshold=0.5,
-               discard_border_results: bool = True) -> DetectionResults:
+    async def detect(self, image: Image, resize: bool = True, threshold=0.5,
+                     discard_border_results: bool = True) -> DetectionResults:
         scale = 1
         original_size = image.size
 
-        if image.size is not AnalysisService.DEFAULT_IMAGE_DETECTION_SIZE:
+        if image.size != AnalysisService.DEFAULT_IMAGE_DETECTION_SIZE:
             if resize is False:
                 logging.warning(f"[AnalysisService] Requested detection on an image with a non-standard size "
                                 f"{image.size} but 'resize' parameter is {resize}.")
             else:
                 logging.info(f"[AnalysisService] Resizing an image from "
                              f"{image.size} to {AnalysisService.DEFAULT_IMAGE_DETECTION_SIZE}")
-                image, scale = DetectionUtils.resize(image, AnalysisService.DEFAULT_IMAGE_DETECTION_SIZE[0])
+                image, scale = DetectionUtils.resize(
+                    image, AnalysisService.DEFAULT_IMAGE_DETECTION_SIZE[0])
 
         if discard_border_results:
-            accepted_xy_range = [(original_size[0] * scale) / image.size[0], (original_size[1] * scale) / image.size[1]]
+            accepted_xy_range = [(original_size[0] * scale) / image.size[0],
+                                 (original_size[1] * scale) / image.size[1]]
         else:
             accepted_xy_range = [1, 1]
-
-        detection_results = self.detector.detect_lego(numpy.array(image))
-        detection_results = self.filter_detection_results(detection_results, threshold, accepted_xy_range)
+        body = BytesIO()
+        numpy.save(body, numpy.array(image), allow_pickle=True)
+        detection_results = await self.queue.rpc('detect', body.getvalue())
+        detection_results = self.filter_detection_results(
+            detection_results, threshold, accepted_xy_range)
 
         return self.translate_bounding_boxes_to_original_size(detection_results,
                                                               scale,
                                                               original_size,
                                                               self.DEFAULT_IMAGE_DETECTION_SIZE[0])
 
-    def classify(self, images: List[Image]) -> ClassificationResults:
-        return self.classifier.predict(images)
+    async def classify(self, images: List[Image]) -> ClassificationResults:
+        async def handle(image):
+            # FIXME one image instead of images in predict
+            return await self.queue.rpc('classify', image)
 
-    def detect_and_classify(self, image: Image, detection_threshold: float = 0.5, discard_border_results: bool = True) \
+        return await asyncio.gather(*[handle(image) for image in images])
+
+    async def detect_and_classify(self, image: Image, detection_threshold: float = 0.5, discard_border_results: bool = True) \
             -> Tuple[DetectionResults, ClassificationResults]:
 
-        detection_results = self.detect(image, threshold=detection_threshold,
+        detection_results = await self.detect(image, threshold=detection_threshold,
                                         discard_border_results=discard_border_results)
 
         cropped_images = []
         for bounding_box in detection_results.detection_boxes:
-            cropped_image = DetectionUtils.crop_with_margin_from_bb(image, bounding_box)
+            cropped_image = DetectionUtils.crop_with_margin_from_bb(
+                image, bounding_box)
             cropped_images.append(cropped_image)
 
-        classification_results = self.classify(cropped_images)
+        classification_results = await self.classify(cropped_images)
 
         return detection_results, classification_results
 
     @staticmethod
-    def translate_bounding_boxes_to_original_size(detection_results: DetectionResults,
-                                                  scale: float,
-                                                  target_image_size: Tuple[int, int],  # (width, height)
-                                                  detection_image_size: int = 640) -> DetectionResults:
+    def translate_bounding_boxes_to_original_size(
+            detection_results: DetectionResults,
+            scale: float,
+            target_image_size: Tuple[int, int],
+            detection_image_size: int = 640) -> DetectionResults:
+
         bbs = []
         for i in range(len(detection_results.detection_classes)):
             y_min, x_min, y_max, x_max = [int(coord * detection_image_size * 1 / scale) for coord in
@@ -114,7 +130,8 @@ class AnalysisService:
 
             if len(results) != 0:
                 results = numpy.stack(results)
-                filtered_results = DetectionResults(results[:, 0], results[:, 1], results[:, 2])
+                filtered_results = DetectionResults(
+                    results[:, 0], results[:, 1], results[:, 2])
             else:
                 filtered_results = DetectionResults([], [], [])
 

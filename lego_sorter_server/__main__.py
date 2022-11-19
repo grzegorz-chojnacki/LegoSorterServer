@@ -4,6 +4,7 @@ from lego_sorter_server.server import Server
 import logging
 import sys
 import threading
+import asyncio
 
 from lego_sorter_server.service.BrickCategoryConfig import BrickCategoryConfig
 
@@ -19,4 +20,4 @@ if __name__ == '__main__':
     logging.getLogger().setLevel(logging.INFO)
     sys.excepthook = exception_handler
     threading.excepthook = exception_handler
-    Server.run(BrickCategoryConfig(args.brick_category_config))
+    asyncio.run(Server.run(BrickCategoryConfig(args.brick_category_config)))
