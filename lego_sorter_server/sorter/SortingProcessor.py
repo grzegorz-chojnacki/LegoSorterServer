@@ -58,9 +58,9 @@ class SortingProcessor:
         """
         Returns a list of recognized bricks ordered by the position on the belt - ymin desc
         """
-        results = await self.analysis_service.detect_and_classify(image, detection_threshold=0.8)
+        detected, classified = await self.analysis_service.detect_and_classify(image, detection_threshold=0.8)
 
-        detected_count = len(results[0].detection_classes)
+        detected_count = len(detected.detection_classes)
         if detected_count == 0:
             return []
 
@@ -70,9 +70,9 @@ class SortingProcessor:
             logging.warning(f"[SortingProcessor] More than one brick detected '(detected_count = {detected_count}), "
                             f"there should be only one brick on the tape at the same time.")
 
-        zipped_results = list(zip(results[0].detection_boxes,
-                                  results[1].classification_classes,
-                                  results[1].classification_scores))
+        zipped_results = list(zip(detected.detection_boxes,
+                                  classified.classification_classes,
+                                  classified.classification_scores))
 
         return self.order_by_bounding_box_position(zipped_results)
 
