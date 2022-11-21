@@ -64,8 +64,9 @@ class AnalysisService:
 
     async def classify(self, images: List[Image]) -> ClassificationResults:
         async def handle(image):
-            # FIXME one image instead of images in predict
-            return await self.queue.rpc('classify', image)
+            body = BytesIO()
+            numpy.save(body, numpy.array(image), allow_pickle=True)
+            return pickle.loads(await self.queue.rpc('classify', body.getvalue()))
 
         return await asyncio.gather(*[handle(image) for image in images])
 
