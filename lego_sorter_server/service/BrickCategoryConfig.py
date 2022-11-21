@@ -35,4 +35,5 @@ class BrickCategoryConfig:
             return cat, self.cat_positions[cat]
 
     def __missing__(self, brick):
-        return "default", self.cat_positions["default"]
+        print(self.cat_positions)
+        return "default", self.cat_positions.get("default", 0)
