@@ -5,12 +5,26 @@ import logging
 import torch
 import numpy
 import asyncio
+import pickle
 from io import BytesIO
 from pathlib import Path
 
 from lego_sorter_server.analysis.detection.DetectionResults import DetectionResults
 from lego_sorter_server.analysis.detection.detectors.LegoDetector import LegoDetector
 from lego_sorter_server.service.QueueService import QueueService
+
+# Workaround for unhelpful thread exceptions
+import sys
+run_old = threading.Thread.run
+def run(*args, **kwargs):
+    try:
+        run_old(*args, **kwargs)
+    except (KeyboardInterrupt, SystemExit):
+        raise
+    except:
+        sys.excepthook(*sys.exc_info())
+threading.Thread.run = run
+
 
 class ThreadSafeSingleton(type):
     _instances = {}
@@ -80,14 +94,13 @@ class YoloLegoDetector(LegoDetector, metaclass=ThreadSafeSingleton):
         return DetectionResults(detection_scores=scores, detection_classes=classes, detection_boxes=boxes)
 
     def _detect_handler(self, channel, method, properties, body):
-        logging.info('_detect_handler')
         image = numpy.load(BytesIO(body), allow_pickle=True)
 
         results = self.detect_lego(image)
         channel.basic_publish(
                 exchange='',
                 routing_key=properties.reply_to,
-                body=results
+                body=pickle.dumps(results)
             )
 
     def detect_lego(self, image: numpy.ndarray) -> DetectionResults:

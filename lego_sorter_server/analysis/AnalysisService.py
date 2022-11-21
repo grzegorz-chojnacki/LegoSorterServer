@@ -2,6 +2,7 @@ import logging
 from typing import Tuple, List
 
 import numpy
+import pickle
 import asyncio
 
 from PIL.Image import Image
@@ -49,7 +50,8 @@ class AnalysisService:
             accepted_xy_range = [1, 1]
         body = BytesIO()
         numpy.save(body, numpy.array(image), allow_pickle=True)
-        detection_results = await self.queue.rpc('detect', body.getvalue())
+
+        detection_results = pickle.loads(await self.queue.rpc('detect', body.getvalue()))
         detection_results = self.filter_detection_results(
             detection_results, threshold, accepted_xy_range)
 
