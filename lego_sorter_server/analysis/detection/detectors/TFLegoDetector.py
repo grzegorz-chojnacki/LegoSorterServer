@@ -13,19 +13,7 @@ from lego_sorter_server.analysis.detection.DetectionUtils import crop_with_margi
 from lego_sorter_server.analysis.detection.detectors.LegoDetector import LegoDetector
 
 
-class ThreadSafeSingleton(type):
-    _instances = {}
-    _singleton_lock = threading.Lock()
-
-    def __call__(cls, *args, **kwargs):
-        if cls not in cls._instances:
-            with cls._singleton_lock:
-                if cls not in cls._instances:
-                    cls._instances[cls] = super(ThreadSafeSingleton, cls).__call__(*args, **kwargs)
-        return cls._instances[cls]
-
-
-class TFLegoDetector(LegoDetector, metaclass=ThreadSafeSingleton):
+class TFLegoDetector(LegoDetector):
 
     def __init__(self, model_path=os.path.join("lego_sorter_server", "analysis", "detection", "models", "tf_model",
                                                "saved_model")):
@@ -38,9 +26,9 @@ class TFLegoDetector(LegoDetector, metaclass=ThreadSafeSingleton):
         input_tensor = input_tensor[tf.newaxis, ...]
         return input_tensor
 
-    def __initialize__(self):
+    def initialize(self):
         if self.__initialized:
-            raise Exception("TFLegoDetector already initialized")
+            raise Exception("[TFLegoDetector] Already initialized")
 
         if not self.model_path.exists():
             logging.error(f"[TFLegoDetector] No model found in {str(self.model_path)}")
@@ -55,8 +43,8 @@ class TFLegoDetector(LegoDetector, metaclass=ThreadSafeSingleton):
 
     def detect_lego(self, image: np.array) -> DetectionResults:
         if not self.__initialized:
-            logging.info("TFLegoDetector is not initialized, this process can take a few seconds for the first time.")
-            self.__initialize__()
+            logging.info("[TFLegoDetector] Initializing...")
+            self.initialize()
 
         input_tensor = self.prepare_input_tensor(image)
         detections = self.model(input_tensor)

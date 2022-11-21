@@ -23,6 +23,7 @@ class QueueService():
     def __init__(self):
         connection = pika.BlockingConnection(pika.ConnectionParameters(host='localhost'))
         self.channel = connection.channel()
+        self.channel.basic_qos(prefetch_count=1)
         self.channel.queue_declare(queue='detect')
         self.channel.queue_declare(queue='classify')
 
@@ -31,21 +32,18 @@ class QueueService():
         thread.start()
 
     def subscribe(self, queue_name: str, callback):
-        logging.info(f'[QueueService] subscribe: {queue_name}')
         return self.channel.basic_consume(
             queue=queue_name,
             on_message_callback=callback,
             auto_ack=True)
 
     def publish(self, queue_name, body):
-        logging.info(f'[QueueService] publish: {queue_name}')
         return self.channel.basic_publish(
             exchange='',
             routing_key=queue_name,
             body=body)
 
     async def rpc(self, queue_name, body):
-        logging.info(f'[QueueService] rpc: {queue_name}')
         callback_queue = self.channel.queue_declare(
             queue='',
             exclusive=True).method.queue

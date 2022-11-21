@@ -15,6 +15,6 @@ class LegoDetectorProvider:
             LegoDetectorProvider.__lock.acquire()
             if not LegoDetectorProvider.__detector:
                 LegoDetectorProvider.__detector = YoloLegoDetector()
-                LegoDetectorProvider.__detector.__initialize__()
+                LegoDetectorProvider.__detector.initialize()
             LegoDetectorProvider.__lock.release()
         return LegoDetectorProvider.__detector

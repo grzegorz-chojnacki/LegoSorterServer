@@ -29,26 +29,31 @@ class AnalysisService:
         self.queue = QueueService()
         self.queue.start()
 
-    async def detect(self, image: Image, resize: bool = True, threshold=0.5,
-                     discard_border_results: bool = True) -> DetectionResults:
+    def _rescale(self, image: Image, resize: bool, discard_border_results: bool):
         scale = 1
         original_size = image.size
 
-        if image.size != AnalysisService.DEFAULT_IMAGE_DETECTION_SIZE:
+        if image.size != self.DEFAULT_IMAGE_DETECTION_SIZE:
             if resize is False:
                 logging.warning(f"[AnalysisService] Requested detection on an image with a non-standard size "
                                 f"{image.size} but 'resize' parameter is {resize}.")
             else:
                 logging.info(f"[AnalysisService] Resizing an image from "
-                             f"{image.size} to {AnalysisService.DEFAULT_IMAGE_DETECTION_SIZE}")
+                             f"{image.size} to {self.DEFAULT_IMAGE_DETECTION_SIZE}")
                 image, scale = DetectionUtils.resize(
-                    image, AnalysisService.DEFAULT_IMAGE_DETECTION_SIZE[0])
+                    image, self.DEFAULT_IMAGE_DETECTION_SIZE[0])
 
-        if discard_border_results:
-            accepted_xy_range = [(original_size[0] * scale) / image.size[0],
-                                 (original_size[1] * scale) / image.size[1]]
-        else:
-            accepted_xy_range = [1, 1]
+        accepted_xy_range = [
+            (original_size[0] * scale) / image.size[0],
+            (original_size[1] * scale) / image.size[1]
+        ] if discard_border_results else [1, 1]
+
+        return image, scale, original_size, accepted_xy_range
+
+    async def detect(self, image: Image, resize: bool = True, threshold=0.5,
+                     discard_border_results: bool = True) -> DetectionResults:
+        image, scale, original_size, accepted_xy_range = self._rescale(
+            image, resize, discard_border_results)
 
         body = BytesIO()
         numpy.save(body, numpy.array(image), allow_pickle=True)
@@ -57,32 +62,51 @@ class AnalysisService:
         detection_results = self.filter_detection_results(
             detection_results, threshold, accepted_xy_range)
 
-        return self.translate_bounding_boxes_to_original_size(detection_results,
-                                                              scale,
-                                                              original_size,
-                                                              self.DEFAULT_IMAGE_DETECTION_SIZE[0])
+        return self.translate_bounding_boxes_to_original_size(
+            detection_results,
+            scale,
+            original_size,
+            self.DEFAULT_IMAGE_DETECTION_SIZE[0])
 
     async def classify(self, images: List[Image]) -> ClassificationResults:
-        async def handle(image):
+        # async def handle(image):
+        #     body = BytesIO()
+        #     numpy.save(body, numpy.array(image), allow_pickle=True)
+        #     return pickle.loads(await self.queue.rpc('classify', body.getvalue()))
+
+        # return await asyncio.gather(*[handle(image) for image in images])
+
+        results = []
+        for image in images:
             body = BytesIO()
             numpy.save(body, numpy.array(image), allow_pickle=True)
-            return pickle.loads(await self.queue.rpc('classify', body.getvalue()))
+            a = pickle.loads(await self.queue.rpc('classify', body.getvalue()))
+            results.append(a)
 
-        return await asyncio.gather(*[handle(image) for image in images])
+        return ClassificationResults(
+            [r.classification_classes[0] for r in results],
+            [r.classification_scores[0] for r in results],
+        )
 
-    async def detect_and_classify(self, image: Image, detection_threshold: float = 0.5, discard_border_results: bool = True) \
+    def _crop_bricks(self, image: Image, detection_results: List[Image]) -> List[Image]:
+        return [
+            DetectionUtils.crop_with_margin_from_bb(image, bounding_box)
+            for bounding_box in detection_results.detection_boxes
+        ]
+
+    async def detect_and_classify(self, image: Image,
+                                  detection_threshold: float = 0.5,
+                                  discard_border_results: bool = True) \
             -> Tuple[DetectionResults, ClassificationResults]:
 
-        detection_results = await self.detect(image, threshold=detection_threshold,
-                                        discard_border_results=discard_border_results)
+        detection_results = await self.detect(
+            image,
+            threshold=detection_threshold,
+            discard_border_results=discard_border_results)
 
-        cropped_images = []
-        for bounding_box in detection_results.detection_boxes:
-            cropped_image = DetectionUtils.crop_with_margin_from_bb(
-                image, bounding_box)
-            cropped_images.append(cropped_image)
-
-        classification_results = await self.classify(cropped_images)
+        brick_images = self._crop_bricks(image, detection_results)
+        classification_results = await self.classify(brick_images)
+        logging.info(classification_results)
 
         return detection_results, classification_results
 
@@ -95,8 +119,10 @@ class AnalysisService:
 
         bbs = []
         for i in range(len(detection_results.detection_classes)):
-            y_min, x_min, y_max, x_max = [int(coord * detection_image_size * 1 / scale) for coord in
-                                          detection_results.detection_boxes[i]]
+            y_min, x_min, y_max, x_max = [
+                int(coord * detection_image_size * 1 / scale)
+                for coord in detection_results.detection_boxes[i]
+            ]
 
             # if y_max >= target_image_size[1] or x_max >= target_image_size[0]:
             #     continue
@@ -105,9 +131,11 @@ class AnalysisService:
 
             bbs.append((y_min, x_min, y_max, x_max))
 
-        detection_results_translated = DetectionResults(detection_results.detection_scores,
-                                                        detection_results.detection_classes,
-                                                        bbs)
+        detection_results_translated = DetectionResults(
+            detection_results.detection_scores,
+            detection_results.detection_classes,
+            bbs)
+
         return detection_results_translated
 
     def filter_detection_results(self, detection_results, threshold, accepted_xy_range):

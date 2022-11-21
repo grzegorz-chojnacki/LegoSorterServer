@@ -24,51 +24,59 @@ gpus = tf.config.list_physical_devices('GPU')
 for gpu in gpus:
     tf.config.experimental.set_memory_growth(gpu, True)
 
-
 class KerasClassifier(LegoClassifier):
-    def __init__(self, model_path=os.path.join("lego_sorter_server", "analysis", "classification", "models",
-                                               "keras_model", "447_classes.h5")):
+    def __init__(self, model_path=os.path.join(
+            "lego_sorter_server", "analysis", "classification", "models", "keras_model", "447_classes.h5")):
         super().__init__()
         self.model_path = model_path
         self.model = None
-        self.initialized = False
+        self.queue = None
         self.size = (224, 224)
+        self.initialize()
+
+    def initialize(self):
         self.queue = QueueService()
+        self.load_model()
+        self.queue.subscribe('classify', self._classify_handler)
+        self.queue.start()
+        self.__initialized = True
 
     def load_model(self):
         self.model = keras.models.load_model(self.model_path)
-        self.queue.subscribe('classify', self._classify_handler)
-        self.queue.start()
-        self.initialized = True
 
     def _classify_handler(self, channel, method, properties, body):
-        logging.info(f'[KerasClassifier] classifying...')
         image = PIL.Image.fromarray(np.load(BytesIO(body), allow_pickle=True))
 
         results = self.predict(image)
+
         channel.basic_publish(
             exchange='',
             routing_key=properties.reply_to,
             body=pickle.dumps(results)
         )
 
-    def predict(self, image: Image) -> ClassificationResults:
-        if not self.initialized:
-            self.load_model()
-
+    def _prepare(self, image: Image) -> np.ndarray:
         start_time = time.time()
         transformed = Simple.transform(image, self.size[0])
         image_array = np.array(transformed)
         image_array = np.expand_dims(image_array, axis=0)
-        processing_elapsed_time_ms = 1000 * (time.time() - start_time)
+        elapsed_time = 1000 * (time.time() - start_time)
+        logging.info(
+            f"[KerasClassifier] Preparing images took {elapsed_time} ms")
+        return image_array
 
-        predictions = self.model(image_array)
+    def predict(self, image: Image) -> ClassificationResults:
+        if not self.__initialized:
+            self.load_model()
 
-        predicting_elapsed_time_ms = 1000 * \
-            (time.time() - start_time) - processing_elapsed_time_ms
+        logging.info(f'[KerasClassifier] classifying...')
+        image_array = self._prepare(image)
 
-        logging.info(f"[KerasClassifier] Preparing images took {processing_elapsed_time_ms} ms, "
-                     f"when predicting took {predicting_elapsed_time_ms} ms.")
+        start_time = time.time()
+        predictions = self.model(np.vstack([image_array]))
+        elapsed_time = 1000 * (time.time() - start_time)
+        logging.info(
+            f"[KerasClassifier] Classifying bricks took {elapsed_time} ms")
 
         indices = [int(np.argmax(values)) for values in predictions]
         classes = [self.class_names[index] for index in indices]

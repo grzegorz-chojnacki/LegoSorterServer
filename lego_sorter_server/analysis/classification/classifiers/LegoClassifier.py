@@ -9,13 +9,17 @@ from lego_sorter_server.analysis.classification.ClassificationResults import Cla
 class LegoClassifier:
     def __init__(self):
         self.class_names: List[str] = self.read_classes_from_file()
+        self.__initialized = False
 
     def predict(self, images: [Image.Image]) -> ClassificationResults:
         pass
 
-    def load_model(self):
+    def initialize(self):
+        self.__initialized = True
+
+    def load_model(self, model_path):
         pass
 
-    def read_classes_from_file(self, classes_file="./lego_sorter_server/analysis/classification/models/classes.txt") -> List[str]:
+    def read_classes_from_file(self, classes_file='./lego_sorter_server/analysis/classification/models/classes.txt') -> List[str]:
         with open(Path(classes_file)) as file:
             return [class_str.strip() for class_str in file]
