@@ -16,7 +16,7 @@ class Captured(Processor):
     @staticmethod
     def precalc_sizes(src, classes, types, div_unit):
         min_size = min([len(os.listdir(os.path.join(src, cls))) for cls in classes])
-        print(F"minimal_size: {min_size}")
+        print(f"minimal_size: {min_size}")
         if div_unit == "%":
             for type, content in types.items():
                 if "DIV_VALUE" in content and content["DIV_VALUE"]:
@@ -24,7 +24,7 @@ class Captured(Processor):
                 else:
                     content["_val"] = None
         else:
-            raise NotImplementedError(F"DIV_UNIT: {div_unit} is not supported by Renders Processor")
+            raise NotImplementedError(f"DIV_UNIT: {div_unit} is not supported by Renders Processor")
 
     @staticmethod
     def calc_probs(candidates):
@@ -83,5 +83,5 @@ class Captured(Processor):
                 im.save(dst_file)
                 candidates[target]["curr"] += 1
             except Exception as ex:
-                print(F"Unable to transform file: {file}. Skipping")
+                print(f"Unable to transform file: {file}. Skipping")
                 print(ex)

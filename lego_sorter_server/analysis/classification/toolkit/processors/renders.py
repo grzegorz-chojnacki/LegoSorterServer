@@ -18,7 +18,7 @@ class Renders(Processor):
     @staticmethod
     def precalc_sizes(src, classes, types, div_unit):
         min_size = min([len(os.listdir(os.path.join(src, cls))) for cls in classes])
-        print(F"minimal_size: {min_size}")
+        print(f"minimal_size: {min_size}")
         if div_unit == "%":
             for type, content in types.items():
                 if "DIV_VALUE" in content and content["DIV_VALUE"]:
@@ -26,7 +26,7 @@ class Renders(Processor):
                 else:
                     content["_val"] = None
         else:
-            raise NotImplementedError(F"DIV_UNIT: {div_unit} is not supported by Renders Processor")
+            raise NotImplementedError(f"DIV_UNIT: {div_unit} is not supported by Renders Processor")
 
     @staticmethod
     def calc_probs(candidates):
@@ -55,7 +55,7 @@ class Renders(Processor):
 
     @staticmethod
     def run(src, dst, cls, types, transformations):
-        print(F"class: {src}")
+        print(f"class: {src}")
         for type in types:
             dst_dir = os.path.join(dst, type, cls)
             if not os.path.isdir(dst_dir):
@@ -91,7 +91,7 @@ class Renders(Processor):
                 series_target[series_id] = target
                 candidates[target]["curr"] += 1
             except TransformationException as ex:
-                print(F"TransformationException: {file}. Skipping")
+                print(f"TransformationException: {file}. Skipping")
                 print(ex)
                 src_file = os.path.join(src, file)
                 wrong_dir = os.path.join(dst, "wrong")
@@ -99,5 +99,5 @@ class Renders(Processor):
                     os.makedirs(wrong_dir)
                 shutil.copyfile(src_file, os.path.join(wrong_dir, ex.prefix+"_"+file))
             except Exception as ex:
-                print(F"Unable to transform file: {file}. Skipping")
+                print(f"Unable to transform file: {file}. Skipping")
                 print(ex)

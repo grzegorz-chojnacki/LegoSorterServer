@@ -8,7 +8,7 @@ class Detect(Transformation):
         legoDetector = TFLegoDetector()
         detected = legoDetector.detect_and_crop(img)
         if len(detected) != 1:
-            raise TransformationException(F"Detected objects: {len(detected)} should be: 1",
+            raise TransformationException(f"Detected objects: {len(detected)} should be: 1",
                                           prefix=str(len(detected)))
         else:
             return detected[0]

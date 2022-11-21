@@ -53,7 +53,7 @@ class DataAlchemist():
         limit = len(self.classes)
         i = 1
         for cls in self.classes:
-            print(F"processed: {i} of {limit} classes ({cls})")
+            print(f"processed: {i} of {limit} classes ({cls})")
             self.processor.run(os.path.join(self.source_path, cls), self.dst, cls, self.types,
                                self.transformations)
             i += 1
