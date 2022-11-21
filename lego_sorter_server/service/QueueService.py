@@ -1,15 +1,34 @@
 import pika
 import logging
+import threading
 from asyncio import Future
 
 
+# Workaround for unhelpful thread exceptions
+import sys
+run_old = threading.Thread.run
+def run(*args, **kwargs):
+    try:
+        run_old(*args, **kwargs)
+    except (KeyboardInterrupt, SystemExit):
+        raise
+    except:
+        sys.excepthook(*sys.exc_info())
+threading.Thread.run = run
+
+
+logging.getLogger('pika').setLevel(logging.FATAL)
+
 class QueueService():
     def __init__(self):
-        connection = pika.BlockingConnection(
-            pika.ConnectionParameters(host='localhost'))
+        connection = pika.BlockingConnection(pika.ConnectionParameters(host='localhost'))
         self.channel = connection.channel()
         self.channel.queue_declare(queue='detect')
         self.channel.queue_declare(queue='classify')
+
+    def start(self):
+        thread = threading.Thread(target=lambda: self.channel.start_consuming())
+        thread.start()
 
     def subscribe(self, queue_name: str, callback):
         logging.info(f'[QueueService] subscribe: {queue_name}')
@@ -25,7 +44,7 @@ class QueueService():
             routing_key=queue_name,
             body=body)
 
-    def rpc(self, queue_name, body):
+    async def rpc(self, queue_name, body):
         logging.info(f'[QueueService] rpc: {queue_name}')
         callback_queue = self.channel.queue_declare(
             queue='',
@@ -48,4 +67,4 @@ class QueueService():
             auto_ack=True)
 
         self.channel.connection.process_data_events(time_limit=None)
-        return result
+        return await result

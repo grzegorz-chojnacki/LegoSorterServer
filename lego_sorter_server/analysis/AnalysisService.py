@@ -27,6 +27,7 @@ class AnalysisService:
         self.detector: LegoDetector = LegoDetectorProvider.get_default_detector()
         self.classifier: LegoClassifier = LegoClassifierProvider.get_default_classifier()
         self.queue = QueueService()
+        self.queue.start()
 
     async def detect(self, image: Image, resize: bool = True, threshold=0.5,
                      discard_border_results: bool = True) -> DetectionResults:
@@ -48,6 +49,7 @@ class AnalysisService:
                                  (original_size[1] * scale) / image.size[1]]
         else:
             accepted_xy_range = [1, 1]
+
         body = BytesIO()
         numpy.save(body, numpy.array(image), allow_pickle=True)
 

@@ -13,18 +13,6 @@ from lego_sorter_server.analysis.detection.DetectionResults import DetectionResu
 from lego_sorter_server.analysis.detection.detectors.LegoDetector import LegoDetector
 from lego_sorter_server.service.QueueService import QueueService
 
-# Workaround for unhelpful thread exceptions
-import sys
-run_old = threading.Thread.run
-def run(*args, **kwargs):
-    try:
-        run_old(*args, **kwargs)
-    except (KeyboardInterrupt, SystemExit):
-        raise
-    except:
-        sys.excepthook(*sys.exc_info())
-threading.Thread.run = run
-
 
 class ThreadSafeSingleton(type):
     _instances = {}
@@ -68,10 +56,9 @@ class YoloLegoDetector(LegoDetector, metaclass=ThreadSafeSingleton):
             self.model.cuda()
 
         self.queue.subscribe('detect', self._detect_handler)
-        elapsed_time = time.time() - start_time
+        self.queue.start()
 
-        t = threading.Thread(target=self._start_consuming, args=())
-        t.start()
+        elapsed_time = time.time() - start_time
 
         logging.info("Loading model took {} seconds".format(elapsed_time))
         self.__initialized = True
