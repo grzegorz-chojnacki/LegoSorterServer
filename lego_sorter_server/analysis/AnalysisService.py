@@ -17,17 +17,32 @@ from lego_sorter_server.analysis.detection.detectors.LegoDetectorProvider import
 
 from lego_sorter_server.service.QueueService import QueueService
 from io import BytesIO
-
+import multiprocessing as mp
 
 class AnalysisService:
     DEFAULT_IMAGE_DETECTION_SIZE = (640, 640)
     BORDER_MARGIN_RELATIVE = 0.001
 
     def __init__(self):
-        self.detector: LegoDetector = LegoDetectorProvider.get_default_detector()
-        self.classifier: LegoClassifier = LegoClassifierProvider.get_default_classifier()
         self.queue = QueueService()
-        self.queue.start()
+        self.queue.startInThread()
+        self.detectorPool = [self.startDetector(i) for i in range(4)]
+        self.classifierPool = [self.startClassifier(i) for i in range(4)]
+
+    def startDetector(self, i):
+        p = mp.Process(
+            name=f'Detector-{i:02}',
+            target=LegoDetectorProvider.get_default_detector)
+        p.start()
+        return p
+
+    def startClassifier(self, i):
+        p = mp.Process(
+            name=f'Classifier-{i:02}',
+            target=LegoClassifierProvider.get_default_classifier)
+        p.start()
+        return p
+
 
     def _rescale(self, image: Image, resize: bool, discard_border_results: bool):
         scale = 1
