@@ -41,10 +41,8 @@ class YoloLegoDetector(LegoDetector):
 
         self.queue = QueueService()
         self.queue.subscribe('detect', self._detect_handler)
-        self.queue.start()
-
         self.__initialized = True
-
+        self.queue.start()
 
     @staticmethod
     def xyxy2yxyx_scaled(xyxy):

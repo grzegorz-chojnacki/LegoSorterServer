@@ -38,8 +38,8 @@ class KerasClassifier(LegoClassifier):
         self.queue = QueueService()
         self.load_model()
         self.queue.subscribe('classify', self._classify_handler)
-        self.queue.start()
         self.__initialized = True
+        self.queue.start()
 
     def load_model(self):
         self.model = keras.models.load_model(self.model_path)

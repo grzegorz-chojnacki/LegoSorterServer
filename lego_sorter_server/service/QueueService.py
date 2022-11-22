@@ -27,9 +27,12 @@ class QueueService():
         self.channel.queue_declare(queue='detect')
         self.channel.queue_declare(queue='classify')
 
-    def start(self):
-        thread = threading.Thread(target=lambda: self.channel.start_consuming())
+    def startInThread(self):
+        thread = threading.Thread(target=self.start)
         thread.start()
+
+    def start(self):
+        self.channel.start_consuming()
 
     def subscribe(self, queue_name: str, callback):
         return self.channel.basic_consume(
