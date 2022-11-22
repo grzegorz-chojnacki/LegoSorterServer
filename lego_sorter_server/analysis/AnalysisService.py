@@ -69,19 +69,12 @@ class AnalysisService:
             self.DEFAULT_IMAGE_DETECTION_SIZE[0])
 
     async def classify(self, images: List[Image]) -> ClassificationResults:
-        # async def handle(image):
-        #     body = BytesIO()
-        #     numpy.save(body, numpy.array(image), allow_pickle=True)
-        #     return pickle.loads(await self.queue.rpc('classify', body.getvalue()))
-
-        # return await asyncio.gather(*[handle(image) for image in images])
-
-        results = []
-        for image in images:
+        async def handle(image):
             body = BytesIO()
             numpy.save(body, numpy.array(image), allow_pickle=True)
-            a = pickle.loads(await self.queue.rpc('classify', body.getvalue()))
-            results.append(a)
+            return pickle.loads(await self.queue.rpc('classify', body.getvalue()))
+
+        results = await asyncio.gather(*[handle(image) for image in images])
 
         return ClassificationResults(
             [r.classification_classes[0] for r in results],
@@ -106,7 +99,6 @@ class AnalysisService:
 
         brick_images = self._crop_bricks(image, detection_results)
         classification_results = await self.classify(brick_images)
-        logging.info(classification_results)
 
         return detection_results, classification_results
 
