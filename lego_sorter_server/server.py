@@ -17,6 +17,7 @@ class Server:
         server = grpc.aio.server(futures.ThreadPoolExecutor(max_workers=16), options=options)
         l = LegoSorterService(sorterConfig)
         LegoSorter_pb2_grpc.add_LegoSorterServicer_to_server(l, server)
+        # FIXME: enable servicers on production environment
         # LegoCapture_pb2_grpc.add_LegoCaptureServicer_to_server(LegoCaptureService(), server)
         # LegoAnalysis_pb2_grpc.add_LegoAnalysisServicer_to_server(LegoAnalysisService(), server)
         server.add_insecure_port('[::]:50051')

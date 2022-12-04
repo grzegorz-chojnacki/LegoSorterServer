@@ -26,8 +26,8 @@ class AnalysisService:
     def __init__(self):
         self.queue = QueueService()
         self.queue.startInThread()
-        self.detectorPool = [self.startDetector(i) for i in range(4)]
-        self.classifierPool = [self.startClassifier(i) for i in range(4)]
+        self.detectorPool = [self.startDetector(i) for i in range(1)]
+        self.classifierPool = [self.startClassifier(i) for i in range(1)]
 
     def startDetector(self, i):
         p = mp.Process(
